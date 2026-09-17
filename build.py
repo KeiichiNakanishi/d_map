@@ -35,7 +35,10 @@ from datetime import datetime, timedelta, timezone
 # 設定
 # ---------------------------------------------------------------------------
 
-# 何票以上で「決定」とみなすか。ここだけ変えれば全体に反映される。
+# 何票以上で「決定」とみなすか。
+# 通常は Notion の「確定」フォーミュラの結果をそのまま使うので、この値は
+# 「確定」プロパティが読めなかったときの保険（フォールバック）としてのみ働く。
+# 閾値を変えたいときは Notion 側の「確定」の数式を編集してください。
 THRESHOLD = 3
 
 # 公開ページに個人名を出すかどうか。False なら票数だけを表示する。
@@ -145,6 +148,13 @@ def plain(rich):
     return "".join(part.get("plain_text", "") for part in rich or [])
 
 
+def formula_value(p):
+    """フォーミュラプロパティの値（boolean / string / number）を取り出す。"""
+    f = p.get("formula") or {}
+    t = f.get("type")
+    return f.get(t) if t else None
+
+
 def extract(page):
     props = page.get("properties", {})
 
@@ -157,6 +167,7 @@ def extract(page):
         "kind": ((prop("種別").get("select") or {}) or {}).get("name") or "",
         "votes": [o["name"] for o in (prop("投票").get("multi_select") or [])],
         "manual": bool(prop("決定").get("checkbox")),
+        "confirmed": formula_value(prop("確定")),
         "minutes": prop("所要時間 (分)").get("number"),
         "note": plain(prop("備考").get("rich_text")),
         "url": prop("URL").get("url") or "",
@@ -164,6 +175,10 @@ def extract(page):
 
 
 def is_decided(item):
+    # Notion の「確定」フォーミュラがあればそれが唯一の判断基準。
+    # 閾値は Notion 側の数式にだけ書かれているので、GUI で変えれば地図も追従する。
+    if item["confirmed"] is not None:
+        return bool(item["confirmed"])
     return item["manual"] or len(item["votes"]) >= THRESHOLD
 
 
@@ -681,7 +696,7 @@ def content_hash(park_rows):
 
 def build_html(park_rows, built_iso, digest):
     now = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
-    rule = f"{THRESHOLD}票以上、または Notion で「決定」にチェックが入ったもの"
+    rule = "Notion で票が集まったもの、または「決定」にチェックが入ったもの"
     parks = "".join(
         render_park(p, SpotIndex(os.path.join(HERE, p["spots"])), rows)
         for p, rows in park_rows
