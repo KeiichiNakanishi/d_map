@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
 Notion の2つのデータベース（ディズニーランド / ディズニーシー）を読み、
-「決定済み」の項目をエリア別の模式図として index.html に書き出す。
+「決定済み」の項目を簡易マップ上にピンで表示する index.html を書き出す。
+
+  maps/tdl_map.png, maps/tds_map.png … 背景の簡易マップ
+  data/tdl_spots.json, data/tds_spots.json … 各スポットの正規化座標（0〜1）
 
 環境変数:
-  NOTION_TOKEN     Notion インテグレーションのシークレット
+  NOTION_TOKEN     Notion コネクトのアクセストークン
   NOTION_DB_LAND   ディズニーランドのデータベースID
   NOTION_DB_SEA    ディズニーシーのデータベースID
 
@@ -17,8 +20,12 @@ Notion の2つのデータベース（ディズニーランド / ディズニー
 
 import html
 import json
+import math
 import os
+import re
+import shutil
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -33,25 +40,23 @@ THRESHOLD = 3
 # 公開ページに個人名を出すかどうか。False なら票数だけを表示する。
 SHOW_VOTER_NAMES = False
 
+# 座標データに無い場所の手動指定（正規化座標 0〜1）。
+# 例: "エレクトリカルパレード": (0.50, 0.62)
+MANUAL_COORDS = {}
+
+# 座標データにエリアごと存在しない場所の代表点。
+AREA_FALLBACK = {
+    "パークエントランス": (0.500, 0.930),
+}
+
+# 座標を持たない場所（パーク全体で行われるものなど）はマップに出さず一覧だけに置く
+NO_PIN_AREAS = {"パークワイド"}
+
 NOTION_VERSION = "2022-06-28"
 API = "https://api.notion.com/v1"
-
 JST = timezone(timedelta(hours=9))
 
-# エリアの並び順（実際のパークの位置関係にあわせた 3x3 の模式図）
-LAND_GRID = [
-    ["クリッターカントリー", "ファンタジーランド", "トゥーンタウン"],
-    ["ウエスタンランド", None, "トゥモローランド"],
-    ["アドベンチャーランド", "ワールドバザール", "パークワイド"],
-]
-LAND_CENTER = "シンデレラ城"
-
-SEA_GRID = [
-    ["アラビアンコースト", "ファンタジースプリングス", "ロストリバーデルタ"],
-    ["マーメイドラグーン", None, "ポートディスカバリー"],
-    ["パークエントランス", "メディテレーニアンハーバー", "アメリカンウォーターフロント"],
-]
-SEA_CENTER = "ミステリアスアイランド"
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 TYPE_ICON = {
     "アトラクション": "🎢",
@@ -61,6 +66,28 @@ TYPE_ICON = {
     "グリーティング": "🤝",
     "レストラン": "🍽",
 }
+
+PARKS = [
+    {
+        "key": "L",
+        "title": "🏰 ディズニーランド",
+        "day": "9/21（月）",
+        "spots": "data/tdl_spots.json",
+        "image": "tdl_map.png",
+        "src": "maps/tdl_map.png",
+        "env": "NOTION_DB_LAND",
+    },
+    {
+        "key": "S",
+        "title": "🌊 ディズニーシー",
+        "day": "9/22（火）",
+        "spots": "data/tds_spots.json",
+        "image": "tds_map.png",
+        "src": "maps/tds_map.png",
+        "env": "NOTION_DB_SEA",
+    },
+]
+
 
 # ---------------------------------------------------------------------------
 # Notion API
@@ -87,7 +114,6 @@ def notion_post(path, payload, token):
 
 
 def query_database(db_id, token):
-    """データベースの全ページを取得する（ページネーション対応）。"""
     rows, cursor = [], None
     while True:
         payload = {"page_size": 100}
@@ -116,17 +142,12 @@ def extract(page):
     def prop(name):
         return props.get(name) or {}
 
-    title = plain(prop("名称").get("title"))
-    votes = [o["name"] for o in (prop("投票").get("multi_select") or [])]
-    decided_flag = bool(prop("決定").get("checkbox"))
-
     return {
-        "name": title,
+        "name": plain(prop("名称").get("title")),
         "area": ((prop("場所").get("select") or {}) or {}).get("name") or "その他",
         "kind": ((prop("種別").get("select") or {}) or {}).get("name") or "",
-        "votes": votes,
-        "count": len(votes),
-        "manual": decided_flag,
+        "votes": [o["name"] for o in (prop("投票").get("multi_select") or [])],
+        "manual": bool(prop("決定").get("checkbox")),
         "minutes": prop("所要時間 (分)").get("number"),
         "note": plain(prop("備考").get("rich_text")),
         "url": prop("URL").get("url") or "",
@@ -134,16 +155,93 @@ def extract(page):
 
 
 def is_decided(item):
-    return item["manual"] or item["count"] >= THRESHOLD
+    return item["manual"] or len(item["votes"]) >= THRESHOLD
 
 
 def is_closed(item):
-    """名称に 🚫 が付いているものは旅行日程中に休止。"""
     return item["name"].startswith("🚫")
 
 
 # ---------------------------------------------------------------------------
-# HTML 生成
+# 名寄せ（Notion の名称 ↔ 座標データの名称）
+# ---------------------------------------------------------------------------
+
+_STRIP = re.compile(r"[\s　\"'’“”・:：!！?？~〜～\-—–ー()（）]")
+
+
+def norm(s):
+    s = unicodedata.normalize("NFKC", s).replace("🚫", "")
+    return _STRIP.sub("", s).lower()
+
+
+class SpotIndex:
+    """座標データを引くための索引。"""
+
+    def __init__(self, path):
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        self.spots = data["spots"]
+        self.by_name = {norm(s["name"]): s for s in self.spots}
+
+        # エリアごとの重心（座標が無い項目の代表点に使う）
+        self.area_center = {}
+        groups = {}
+        id2name = {a["id"]: a["name"] for a in data.get("areas", [])}
+        for s in self.spots:
+            groups.setdefault(s["area"], []).append(s)
+        for aid, ss in groups.items():
+            cx = sum(s["x"] for s in ss) / len(ss)
+            cy = sum(s["y"] for s in ss) / len(ss)
+            self.area_center[id2name.get(aid, aid)] = (cx, cy)
+        for name, xy in AREA_FALLBACK.items():
+            self.area_center.setdefault(name, xy)
+
+    def lookup(self, item):
+        """(x, y, exact) を返す。見つからなければ None。"""
+        if item["name"] in MANUAL_COORDS:
+            return (*MANUAL_COORDS[item["name"]], True)
+
+        key = norm(item["name"])
+        s = self.by_name.get(key)
+        if s:
+            return (s["x"], s["y"], True)
+
+        # 前方一致・部分一致（「〜"ザ・レオナルドチャレンジ"」のような派生名）
+        best = None
+        for k, s in self.by_name.items():
+            if k.startswith(key) or key.startswith(k):
+                if best is None or len(k) > len(best[0]):
+                    best = (k, s)
+        if best:
+            return (best[1]["x"], best[1]["y"], True)
+
+        if item["area"] in NO_PIN_AREAS:
+            return None
+        c = self.area_center.get(item["area"])
+        if c:
+            return (c[0], c[1], False)
+        return None
+
+
+def spread(items):
+    """同じ座標に重なったピンを小さく円状にずらす。"""
+    buckets = {}
+    for it in items:
+        k = (round(it["_x"], 4), round(it["_y"], 4))
+        buckets.setdefault(k, []).append(it)
+    for (bx, by), group in buckets.items():
+        n = len(group)
+        if n == 1:
+            continue
+        r = 0.022 + 0.006 * min(n, 8)
+        for i, it in enumerate(group):
+            ang = 2 * math.pi * i / n - math.pi / 2
+            it["_x"] = min(0.985, max(0.015, bx + r * math.cos(ang) * 0.72))
+            it["_y"] = min(0.985, max(0.015, by + r * math.sin(ang)))
+
+
+# ---------------------------------------------------------------------------
+# HTML
 # ---------------------------------------------------------------------------
 
 
@@ -151,107 +249,161 @@ def esc(s):
     return html.escape(str(s), quote=True)
 
 
-def render_item(item):
+def badge_text(item):
+    n = len(item["votes"])
+    if SHOW_VOTER_NAMES and n:
+        return "・".join(item["votes"])
+    if n:
+        return f"{n}票"
+    return "確定"
+
+
+def render_pin(item):
+    cls = ["pin"]
+    if is_closed(item):
+        cls.append("closed")
+    if not item["_exact"]:
+        cls.append("approx")
+    tip = item["name"] + "（" + badge_text(item) + "）"
+    return (
+        f'<button class="{" ".join(cls)}" data-k="{esc(item["_key"])}" '
+        f'style="left:{item["_x"] * 100:.2f}%;top:{item["_y"] * 100:.2f}%" '
+        f'aria-label="{esc(tip)}">'
+        f'<span class="dot">{item["_num"]}</span>'
+        f'<span class="tip">{esc(tip)}</span>'
+        f"</button>"
+    )
+
+
+def render_row(item):
     icon = TYPE_ICON.get(item["kind"], "•")
     name = esc(item["name"])
     if item["url"]:
         name = f'<a href="{esc(item["url"])}" target="_blank" rel="noopener">{name}</a>'
 
-    meta = []
+    bits = []
     if item["minutes"]:
-        meta.append(f'{int(item["minutes"])}分')
-    meta_html = (
-        f'<span class="meta">{esc(" / ".join(meta))}</span>' if meta else ""
+        bits.append(f'{int(item["minutes"])}分')
+    if item["manual"]:
+        bits.append("確定")
+    if not item["_exact"] and item["_num"]:
+        bits.append("エリア内")
+    meta = f'<span class="meta">{esc(" ・ ".join(bits))}</span>' if bits else ""
+
+    cls = "row closed" if is_closed(item) else "row"
+    num = (
+        f'<span class="num">{item["_num"]}</span>'
+        if item["_num"]
+        else '<span class="num none">–</span>'
     )
-
-    if item["manual"] and item["count"] == 0:
-        badge = "確定"
-    elif SHOW_VOTER_NAMES:
-        badge = "・".join(item["votes"]) or "確定"
-    else:
-        badge = f'{item["count"]}票'
-        if item["manual"]:
-            badge += " ・確定"
-
-    closed = ' closed' if is_closed(item) else ""
-
+    attr = f' data-k="{esc(item["_key"])}" tabindex="0"' if item["_num"] else ""
     return (
-        f'<li class="item{closed}">'
+        f'<li class="{cls}"{attr}>{num}'
         f'<span class="icon">{icon}</span>'
-        f'<span class="name">{name}</span>'
-        f'{meta_html}'
-        f'<span class="badge">{esc(badge)}</span>'
+        f'<span class="body"><span class="nm">{name}</span>{meta}</span>'
+        f'<span class="badge">{esc(badge_text(item))}</span>'
         f"</li>"
     )
 
 
-def render_area(area, items, is_center=False):
-    cls = "area center" if is_center else "area"
-    if is_center and not items:
-        # 中央はパークのシンボル。空でも「決定なし」とは出さない。
-        return f'<div class="{cls} landmark"><h3>{esc(area)}</h3></div>'
+def render_legend(items):
     if not items:
         return (
-            f'<div class="{cls} empty"><h3>{esc(area)}</h3>'
-            f'<p class="none">まだ決定なし</p></div>'
+            '<p class="none">まだ決定した場所はありません。'
+            "Notion で投票が集まると、ここと地図に出てきます。</p>"
         )
-    lis = "\n".join(render_item(i) for i in items)
-    return (
-        f'<div class="{cls}"><h3>{esc(area)} '
-        f'<span class="count">{len(items)}</span></h3>'
-        f"<ul>{lis}</ul></div>"
+    groups, order = {}, []
+    for it in items:
+        if it["area"] not in groups:
+            groups[it["area"]] = []
+            order.append(it["area"])
+        groups[it["area"]].append(it)
+
+    out = []
+    for area in order:
+        rows = "".join(render_row(i) for i in groups[area])
+        out.append(
+            f'<div class="group"><h4>{esc(area)}'
+            f'<span class="gcount">{len(groups[area])}</span></h4>'
+            f"<ul>{rows}</ul></div>"
+        )
+    return "".join(out)
+
+
+def render_park(park, index, rows):
+    items = [extract(p) for p in rows]
+    items = [i for i in items if i["name"] and is_decided(i)]
+
+    placed, unplaced = [], []
+    for it in items:
+        hit = index.lookup(it)
+        if hit is None:
+            it["_x"] = it["_y"] = None
+            it["_exact"] = False
+            unplaced.append(it)
+        else:
+            it["_x"], it["_y"], it["_exact"] = hit
+            placed.append(it)
+
+    spread(placed)
+
+    # エリア順 → 票数順で番号を振る
+    area_order = list(index.area_center)
+    placed.sort(
+        key=lambda i: (
+            area_order.index(i["area"]) if i["area"] in area_order else 99,
+            -len(i["votes"]),
+            i["name"],
+        )
     )
+    for n, it in enumerate(placed, 1):
+        it["_num"] = n
+        it["_key"] = f'{park["key"]}{n}'
+    for it in unplaced:
+        it["_num"] = None
+        it["_key"] = ""
 
+    pins = "".join(render_pin(i) for i in placed)
+    total = len(placed) + len(unplaced)
 
-def render_park(title, subtitle, grid, center_label, by_area):
-    cells = []
-    for row in grid:
-        for area in row:
-            if area is None:
-                center_items = []
-                for a in list(by_area):
-                    if a == center_label:
-                        center_items = by_area.pop(a)
-                cells.append(
-                    render_area(center_label, center_items, is_center=True)
-                )
-            else:
-                cells.append(render_area(area, by_area.pop(area, [])))
-
-    # グリッドに載らなかったエリア（想定外の値）は下に並べる
-    leftovers = "".join(
-        render_area(a, items) for a, items in by_area.items() if items
-    )
-
-    total = sum(len(v) for v in by_area.values())
     return f"""
     <section class="park">
       <header class="park-head">
-        <h2>{esc(title)}</h2>
-        <p>{esc(subtitle)}</p>
+        <h2>{esc(park["title"])}</h2>
+        <p>{esc(park["day"])} ・ 決定 {total} か所</p>
       </header>
-      <div class="grid">{''.join(cells)}</div>
-      {f'<div class="grid leftovers">{leftovers}</div>' if leftovers else ''}
+      <div class="split">
+        <figure class="figure">
+          <div class="mapwrap">
+            <img class="mapimg" src="{esc(park["image"])}"
+                 alt="{esc(park["title"])}の簡易マップ" loading="lazy">
+            {pins}
+          </div>
+          <figcaption>番号は一覧の番号に対応しています。
+          ピンをタップすると名前が出て、一覧の該当行が光ります。</figcaption>
+        </figure>
+        <div class="legend">{render_legend(placed + unplaced)}</div>
+      </div>
     </section>"""
 
 
 CSS = """
 :root{
-  --bg:#f6f7f9; --panel:#ffffff; --ink:#1a1d23; --muted:#6b7280;
-  --line:#e3e6ea; --accent:#2f6fd0; --accent-soft:#e8f0fc;
-  --center:#fff8e6; --center-line:#e8d9a8;
+  --bg:#f6f7f9; --panel:#fff; --ink:#1a1d23; --muted:#6b7280;
+  --line:#e3e6ea; --accent:#1f6feb; --accent-soft:#e8f0fc; --on-accent:#fff;
+  --hl:#e8590c; --hl-soft:#fdece3; --shadow:rgba(16,22,34,.22);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#14161a; --panel:#1c1f25; --ink:#e8eaed; --muted:#9aa3ad;
-    --line:#2b2f36; --accent:#78a9f0; --accent-soft:#1f2c40;
-    --center:#2a2417; --center-line:#4a4028;
+    --line:#2b2f36; --accent:#4d90f0; --accent-soft:#1f2c40; --on-accent:#fff;
+    --hl:#ff8a3d; --hl-soft:#3a2415; --shadow:rgba(0,0,0,.5);
   }
 }
 :root[data-theme="dark"]{
   --bg:#14161a; --panel:#1c1f25; --ink:#e8eaed; --muted:#9aa3ad;
-  --line:#2b2f36; --accent:#78a9f0; --accent-soft:#1f2c40;
-  --center:#2a2417; --center-line:#4a4028;
+  --line:#2b2f36; --accent:#4d90f0; --accent-soft:#1f2c40; --on-accent:#fff;
+  --hl:#ff8a3d; --hl-soft:#3a2415; --shadow:rgba(0,0,0,.5);
 }
 *{box-sizing:border-box}
 body{
@@ -259,97 +411,149 @@ body{
   font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
   line-height:1.6; -webkit-text-size-adjust:100%;
 }
-.wrap{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
+.wrap{max-width:1280px; margin:0 auto; padding:32px 16px 64px}
 h1{font-size:1.5rem; margin:0 0 4px}
 .lede{color:var(--muted); margin:0 0 4px; font-size:.9rem}
-.stamp{color:var(--muted); font-size:.8rem; margin:0 0 32px}
-.park{margin:0 0 48px}
+.stamp{color:var(--muted); font-size:.8rem; margin:0 0 36px}
+.park{margin:0 0 52px}
 .park-head h2{font-size:1.15rem; margin:0 0 2px}
 .park-head p{margin:0 0 14px; color:var(--muted); font-size:.85rem}
-.grid{
-  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+
+.split{
+  display:grid; grid-template-columns:minmax(0,1.6fr) minmax(290px,1fr);
+  gap:20px; align-items:start;
 }
-.leftovers{margin-top:10px}
-.area{
-  background:var(--panel); border:1px solid var(--line); border-radius:10px;
-  padding:12px 13px; min-height:96px;
+.figure{
+  margin:0; background:var(--panel); border:1px solid var(--line);
+  border-radius:12px; padding:12px;
+  position:sticky; top:12px;
 }
-.area.center{background:var(--center); border-color:var(--center-line)}
-.area.landmark{
-  display:flex; align-items:center; justify-content:center;
-  border-style:dashed;
+.figure figcaption{margin-top:8px; color:var(--muted); font-size:.75rem}
+.mapwrap{position:relative; line-height:0; border-radius:8px; overflow:hidden}
+.mapimg{width:100%; height:auto; display:block}
+
+/* ピン */
+.pin{
+  position:absolute; transform:translate(-50%,-50%);
+  width:26px; height:26px; padding:0; border:0; background:none;
+  cursor:pointer; line-height:1; z-index:2;
 }
-.area.landmark h3{margin:0; opacity:.7}
-.area h3{
-  font-size:.8rem; margin:0 0 8px; color:var(--muted);
-  font-weight:600; letter-spacing:.02em;
-  display:flex; align-items:center; gap:6px;
+.pin .dot{
+  display:block; width:26px; height:26px; border-radius:50%;
+  background:var(--accent); color:var(--on-accent);
+  border:2px solid #fff; box-shadow:0 1px 4px var(--shadow);
+  font-size:12px; font-weight:700; line-height:22px; text-align:center;
+  transition:background .12s, transform .12s;
 }
-.area .count{
+.pin.approx .dot{border-style:dashed; opacity:.9}
+.pin.closed .dot{background:#8b949e}
+.pin .tip{
+  position:absolute; left:50%; bottom:130%; transform:translateX(-50%);
+  background:var(--ink); color:var(--bg);
+  font-size:11px; line-height:1.45; font-weight:600;
+  padding:4px 8px; border-radius:6px; white-space:nowrap;
+  opacity:0; pointer-events:none; transition:opacity .12s; z-index:3;
+  max-width:240px; overflow:hidden; text-overflow:ellipsis;
+}
+.pin:hover .dot, .pin.hl .dot{background:var(--hl); transform:scale(1.22); z-index:4}
+.pin:hover .tip, .pin.hl .tip, .pin:focus-visible .tip{opacity:1}
+.pin:hover, .pin.hl{z-index:5}
+
+/* 凡例 */
+.legend{display:grid; gap:12px; align-content:start}
+.legend .none{color:var(--muted); font-size:.85rem; margin:0}
+.group{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px;
+}
+.group h4{
+  font-size:.78rem; margin:0 0 7px; color:var(--muted);
+  font-weight:600; display:flex; align-items:center; gap:6px;
+}
+.gcount{
   background:var(--accent-soft); color:var(--accent);
   border-radius:99px; padding:0 7px; font-size:.7rem; font-weight:700;
 }
-.area.empty .none{color:var(--muted); font-size:.78rem; margin:0; opacity:.65}
-.area ul{list-style:none; margin:0; padding:0; display:grid; gap:6px}
-.item{
-  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
-  font-size:.85rem;
+.group ul{list-style:none; margin:0; padding:0; display:grid; gap:3px}
+.row{
+  display:flex; align-items:center; gap:7px; font-size:.85rem;
+  padding:3px 6px; margin:0 -6px; border-radius:7px;
+  outline:none; transition:background .12s;
 }
-.item .icon{flex:none}
-.item .name{font-weight:600}
-.item .name a{color:inherit; text-decoration:none; border-bottom:1px solid var(--line)}
-.item .name a:hover{border-bottom-color:var(--accent); color:var(--accent)}
-.item .meta{color:var(--muted); font-size:.74rem}
-.item .badge{
-  margin-left:auto; flex:none;
-  background:var(--accent-soft); color:var(--accent);
+.row[data-k]{cursor:pointer}
+.row .num{
+  flex:none; width:21px; height:21px; border-radius:50%;
+  background:var(--accent); color:var(--on-accent);
+  font-size:.7rem; font-weight:700; text-align:center; line-height:21px;
+}
+.row .num.none{background:transparent; color:var(--muted)}
+.row.closed .num{background:#8b949e}
+.row .icon{flex:none}
+.row .body{flex:1 1 auto; min-width:0}
+.row .nm{font-weight:600}
+.row .nm a{color:inherit; text-decoration:none; border-bottom:1px solid var(--line)}
+.row .nm a:hover{color:var(--accent); border-bottom-color:var(--accent)}
+.row .meta{color:var(--muted); font-size:.74rem; margin-left:6px}
+.row .badge{
+  flex:none; background:var(--accent-soft); color:var(--accent);
   border-radius:99px; padding:1px 8px; font-size:.72rem; font-weight:700;
 }
-.item.closed .name{text-decoration:line-through; opacity:.55}
+.row.closed .nm{text-decoration:line-through; opacity:.55}
+.row.hl, .row[data-k]:focus-visible{background:var(--hl-soft)}
+.row.hl .num{background:var(--hl)}
+
 footer{
   margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
   color:var(--muted); font-size:.78rem;
 }
+@media (max-width:900px){
+  .split{grid-template-columns:1fr}
+  .figure{position:static}
+}
 @media (max-width:720px){
   .wrap{padding:24px 16px 48px}
-  .grid{grid-template-columns:1fr}
-  .area{min-height:0}
+  .pin, .pin .dot{width:22px; height:22px}
+  .pin .dot{font-size:11px; line-height:18px}
 }
 """
 
+JS = """
+(function(){
+  var sticky = null;
+  function mark(k, on){
+    document.querySelectorAll('[data-k="'+k+'"]').forEach(function(el){
+      el.classList.toggle('hl', on);
+    });
+  }
+  function scrollTo(k){
+    var row = document.querySelector('li[data-k="'+k+'"]');
+    if (row) row.scrollIntoView({block:'nearest', behavior:'smooth'});
+  }
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    var k = el.getAttribute('data-k');
+    if (!k) return;
+    el.addEventListener('mouseenter', function(){ mark(k, true); });
+    el.addEventListener('mouseleave', function(){ if (sticky !== k) mark(k, false); });
+    el.addEventListener('focus', function(){ mark(k, true); });
+    el.addEventListener('blur', function(){ if (sticky !== k) mark(k, false); });
+    el.addEventListener('click', function(e){
+      if (e.target.tagName === 'A') return;
+      if (sticky && sticky !== k) mark(sticky, false);
+      sticky = (sticky === k) ? null : k;
+      mark(k, sticky === k);
+      if (sticky && el.tagName === 'BUTTON') scrollTo(k);
+    });
+  });
+})();
+"""
 
-def build_html(land_rows, sea_rows):
-    def group(rows):
-        by_area = {}
-        for page in rows:
-            item = extract(page)
-            if not item["name"] or not is_decided(item):
-                continue
-            by_area.setdefault(item["area"], []).append(item)
-        for items in by_area.values():
-            items.sort(key=lambda i: (-i["count"], i["name"]))
-        return by_area
 
-    land_by_area = group(land_rows)
-    sea_by_area = group(sea_rows)
-    n_land = sum(len(v) for v in land_by_area.values())
-    n_sea = sum(len(v) for v in sea_by_area.values())
-
+def build_html(park_rows):
     now = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
     rule = f"{THRESHOLD}票以上、または Notion で「決定」にチェックが入ったもの"
-
-    parks = render_park(
-        "🏰 ディズニーランド",
-        f"9/21（月） ・ 決定 {n_land} 件",
-        LAND_GRID,
-        LAND_CENTER,
-        land_by_area,
-    ) + render_park(
-        "🌊 ディズニーシー",
-        f"9/22（火） ・ 決定 {n_sea} 件",
-        SEA_GRID,
-        SEA_CENTER,
-        sea_by_area,
+    parks = "".join(
+        render_park(p, SpotIndex(os.path.join(HERE, p["spots"])), rows)
+        for p, rows in park_rows
     )
 
     return f"""<!DOCTYPE html>
@@ -368,45 +572,42 @@ def build_html(land_rows, sea_rows):
   <p class="stamp">最終更新 {esc(now)} JST ・ Notion の投票から自動生成</p>
   {parks}
   <footer>
-    エリアの配置は位置関係をイメージした模式図です。正確な地図ではありません。<br>
-    取り消し線は旅行日程中に休止予定の項目です。
+    破線のピンと「エリア内」は正確な位置が分からない項目で、エリアの中心に置いています。<br>
+    取り消し線と灰色のピンは、旅行日程中に休止予定の項目です。<br>
+    地図は位置関係をつかむための簡易マップで、正確な縮尺ではありません。
   </footer>
 </div>
+<script>{JS}</script>
 </body>
 </html>
 """
 
 
-# ---------------------------------------------------------------------------
-
-
 def main():
     token = os.environ.get("NOTION_TOKEN")
-    db_land = os.environ.get("NOTION_DB_LAND")
-    db_sea = os.environ.get("NOTION_DB_SEA")
+    if not token:
+        sys.exit("環境変数が設定されていません: NOTION_TOKEN")
 
-    missing = [
-        n
-        for n, v in (
-            ("NOTION_TOKEN", token),
-            ("NOTION_DB_LAND", db_land),
-            ("NOTION_DB_SEA", db_sea),
-        )
-        if not v
-    ]
-    if missing:
-        sys.exit("環境変数が設定されていません: " + ", ".join(missing))
+    park_rows = []
+    for p in PARKS:
+        db = os.environ.get(p["env"])
+        if not db:
+            sys.exit(f'環境変数が設定されていません: {p["env"]}')
+        park_rows.append((p, query_database(db, token)))
 
-    land = query_database(db_land, token)
-    sea = query_database(db_sea, token)
-
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+    out_dir = os.path.join(HERE, "public")
     os.makedirs(out_dir, exist_ok=True)
+    for p in PARKS:
+        shutil.copyfile(
+            os.path.join(HERE, p["src"]), os.path.join(out_dir, p["image"])
+        )
+
     out = os.path.join(out_dir, "index.html")
     with open(out, "w", encoding="utf-8") as f:
-        f.write(build_html(land, sea))
+        f.write(build_html(park_rows))
 
-    print(f"ランド {len(land)} 件 / シー {len(sea)} 件 を読み込み、{out} を書き出しました。")
+    counts = " / ".join(f'{p["title"]} {len(r)}件' for p, r in park_rows)
+    print(f"{counts} を読み込み、{out} を書き出しました。")
 
 
 if __name__ == "__main__":

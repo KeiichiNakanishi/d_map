@@ -1,0 +1,497 @@
+{
+  "schema_version": "0.1",
+  "park": {
+    "id": "tdl",
+    "name": "東京ディズニーランド",
+    "map_image": "tdl_map.png",
+    "image_width_px": 1491,
+    "image_height_px": 1055,
+    "coordinate_system": {
+      "type": "normalized_image",
+      "origin": "top_left",
+      "x_range": [
+        0.0,
+        1.0
+      ],
+      "y_range": [
+        0.0,
+        1.0
+      ],
+      "conversion": {
+        "pixel_x": "x * image_width_px",
+        "pixel_y": "y * image_height_px"
+      }
+    }
+  },
+  "areas": [
+    {
+      "id": "world_bazaar",
+      "name": "ワールドバザール"
+    },
+    {
+      "id": "adventureland",
+      "name": "アドベンチャーランド"
+    },
+    {
+      "id": "westernland",
+      "name": "ウエスタンランド"
+    },
+    {
+      "id": "critter_country",
+      "name": "クリッターカントリー"
+    },
+    {
+      "id": "fantasyland",
+      "name": "ファンタジーランド"
+    },
+    {
+      "id": "toontown",
+      "name": "トゥーンタウン"
+    },
+    {
+      "id": "tomorrowland",
+      "name": "トゥモローランド"
+    }
+  ],
+  "spots": [
+    {
+      "id": "tdl_omnibus",
+      "name": "オムニバス",
+      "category": "attraction",
+      "area": "world_bazaar",
+      "x": 0.535,
+      "y": 0.695,
+      "status": "active"
+    },
+    {
+      "id": "tdl_penny_arcade",
+      "name": "ペニーアーケード",
+      "category": "attraction",
+      "area": "world_bazaar",
+      "x": 0.505,
+      "y": 0.72,
+      "status": "active"
+    },
+    {
+      "id": "tdl_western_river_railroad",
+      "name": "ウエスタンリバー鉄道",
+      "category": "attraction",
+      "area": "adventureland",
+      "x": 0.3,
+      "y": 0.61,
+      "status": "active"
+    },
+    {
+      "id": "tdl_jungle_cruise",
+      "name": "ジャングルクルーズ：ワイルドライフ・エクスペディション",
+      "category": "attraction",
+      "area": "adventureland",
+      "x": 0.265,
+      "y": 0.625,
+      "status": "active"
+    },
+    {
+      "id": "tdl_swiss_family_treehouse",
+      "name": "スイスファミリー・ツリーハウス",
+      "category": "attraction",
+      "area": "adventureland",
+      "x": 0.345,
+      "y": 0.595,
+      "status": "active"
+    },
+    {
+      "id": "tdl_enchanted_tiki_room",
+      "name": "魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”",
+      "category": "attraction",
+      "area": "adventureland",
+      "x": 0.315,
+      "y": 0.665,
+      "status": "active"
+    },
+    {
+      "id": "tdl_pirates",
+      "name": "カリブの海賊",
+      "category": "attraction",
+      "area": "adventureland",
+      "x": 0.405,
+      "y": 0.65,
+      "status": "active"
+    },
+    {
+      "id": "tdl_country_bear",
+      "name": "カントリーベア・シアター",
+      "category": "attraction",
+      "area": "westernland",
+      "x": 0.355,
+      "y": 0.43,
+      "status": "active"
+    },
+    {
+      "id": "tdl_shootin_gallery",
+      "name": "ウエスタンランド・シューティングギャラリー",
+      "category": "attraction",
+      "area": "westernland",
+      "x": 0.3,
+      "y": 0.455,
+      "status": "active"
+    },
+    {
+      "id": "tdl_mark_twain",
+      "name": "蒸気船マークトウェイン号",
+      "category": "attraction",
+      "area": "westernland",
+      "x": 0.185,
+      "y": 0.475,
+      "status": "active"
+    },
+    {
+      "id": "tdl_tom_sawyer_rafts",
+      "name": "トムソーヤ島いかだ",
+      "category": "attraction",
+      "area": "westernland",
+      "x": 0.25,
+      "y": 0.5,
+      "status": "active"
+    },
+    {
+      "id": "tdl_big_thunder",
+      "name": "ビッグサンダー・マウンテン",
+      "category": "attraction",
+      "area": "westernland",
+      "x": 0.265,
+      "y": 0.39,
+      "status": "active"
+    },
+    {
+      "id": "tdl_splash_mountain",
+      "name": "スプラッシュ・マウンテン",
+      "category": "attraction",
+      "area": "critter_country",
+      "x": 0.365,
+      "y": 0.235,
+      "status": "active"
+    },
+    {
+      "id": "tdl_canoes",
+      "name": "ビーバーブラザーズのカヌー探険",
+      "category": "attraction",
+      "area": "critter_country",
+      "x": 0.41,
+      "y": 0.295,
+      "status": "active"
+    },
+    {
+      "id": "tdl_haunted_mansion",
+      "name": "ホーンテッドマンション",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.47,
+      "y": 0.265,
+      "status": "active"
+    },
+    {
+      "id": "tdl_pooh",
+      "name": "プーさんのハニーハント",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.57,
+      "y": 0.265,
+      "status": "active"
+    },
+    {
+      "id": "tdl_its_a_small_world",
+      "name": "イッツ・ア・スモールワールド",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.625,
+      "y": 0.21,
+      "status": "active"
+    },
+    {
+      "id": "tdl_alice_tea_party",
+      "name": "アリスのティーパーティー",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.575,
+      "y": 0.345,
+      "status": "active"
+    },
+    {
+      "id": "tdl_castle_carrousel",
+      "name": "キャッスルカルーセル",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.535,
+      "y": 0.355,
+      "status": "active"
+    },
+    {
+      "id": "tdl_snow_white",
+      "name": "白雪姫と七人のこびと",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.5,
+      "y": 0.33,
+      "status": "active"
+    },
+    {
+      "id": "tdl_peter_pan",
+      "name": "ピーターパン空の旅",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.455,
+      "y": 0.335,
+      "status": "active"
+    },
+    {
+      "id": "tdl_pinocchio",
+      "name": "ピノキオの冒険旅行",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.48,
+      "y": 0.365,
+      "status": "active"
+    },
+    {
+      "id": "tdl_dumbo",
+      "name": "空飛ぶダンボ",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.54,
+      "y": 0.39,
+      "status": "active"
+    },
+    {
+      "id": "tdl_philharmagic",
+      "name": "ミッキーのフィルハーマジック",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.6,
+      "y": 0.365,
+      "status": "active"
+    },
+    {
+      "id": "tdl_cinderella_fairy_tale_hall",
+      "name": "シンデレラのフェアリーテイル・ホール",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.535,
+      "y": 0.445,
+      "status": "active"
+    },
+    {
+      "id": "tdl_beauty_and_beast",
+      "name": "美女と野獣“魔法のものがたり”",
+      "category": "attraction",
+      "area": "fantasyland",
+      "x": 0.655,
+      "y": 0.265,
+      "status": "active"
+    },
+    {
+      "id": "tdl_mickeys_house",
+      "name": "ミッキーの家とミート・ミッキー",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.815,
+      "y": 0.235,
+      "status": "active"
+    },
+    {
+      "id": "tdl_minnies_house",
+      "name": "ミニーの家",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.775,
+      "y": 0.205,
+      "status": "active"
+    },
+    {
+      "id": "tdl_roger_rabbit",
+      "name": "ロジャーラビットのカートゥーンスピン",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.855,
+      "y": 0.25,
+      "status": "active"
+    },
+    {
+      "id": "tdl_gadget_coaster",
+      "name": "ガジェットのゴーコースター",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.835,
+      "y": 0.16,
+      "status": "active"
+    },
+    {
+      "id": "tdl_goofy_paint",
+      "name": "グーフィーのペイント＆プレイハウス",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.79,
+      "y": 0.15,
+      "status": "active"
+    },
+    {
+      "id": "tdl_chip_dale_treehouse",
+      "name": "チップとデールのツリーハウス",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.745,
+      "y": 0.165,
+      "status": "active"
+    },
+    {
+      "id": "tdl_donalds_boat",
+      "name": "ドナルドのボート",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.865,
+      "y": 0.195,
+      "status": "active"
+    },
+    {
+      "id": "tdl_toon_park",
+      "name": "トゥーンパーク",
+      "category": "attraction",
+      "area": "toontown",
+      "x": 0.755,
+      "y": 0.255,
+      "status": "active"
+    },
+    {
+      "id": "tdl_monsters_inc",
+      "name": "モンスターズ・インク“ライド＆ゴーシーク！”",
+      "category": "attraction",
+      "area": "tomorrowland",
+      "x": 0.665,
+      "y": 0.58,
+      "status": "active"
+    },
+    {
+      "id": "tdl_baymax",
+      "name": "ベイマックスのハッピーライド",
+      "category": "attraction",
+      "area": "tomorrowland",
+      "x": 0.745,
+      "y": 0.52,
+      "status": "active"
+    },
+    {
+      "id": "tdl_star_tours",
+      "name": "スター・ツアーズ：ザ・アドベンチャーズ・コンティニュー",
+      "category": "attraction",
+      "area": "tomorrowland",
+      "x": 0.68,
+      "y": 0.48,
+      "status": "active"
+    },
+    {
+      "id": "tdl_stitch_encounter",
+      "name": "スティッチ・エンカウンター",
+      "category": "attraction",
+      "area": "tomorrowland",
+      "x": 0.72,
+      "y": 0.455,
+      "status": "active"
+    }
+  ],
+  "facilities": [
+    {
+      "id": "tdl_entrance",
+      "name": "メインエントランス",
+      "category": "entrance",
+      "area": "entrance",
+      "x": 0.535,
+      "y": 0.9,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_01",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "adventureland",
+      "x": 0.215,
+      "y": 0.715,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_02",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "westernland",
+      "x": 0.135,
+      "y": 0.355,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_03",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "critter_country",
+      "x": 0.39,
+      "y": 0.175,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_04",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "fantasyland",
+      "x": 0.655,
+      "y": 0.14,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_05",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "fantasyland",
+      "x": 0.485,
+      "y": 0.365,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_06",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "toontown",
+      "x": 0.9,
+      "y": 0.265,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_07",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "tomorrowland",
+      "x": 0.925,
+      "y": 0.455,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_08",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "tomorrowland",
+      "x": 0.88,
+      "y": 0.65,
+      "status": "active"
+    },
+    {
+      "id": "tdl_wc_09",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "world_bazaar",
+      "x": 0.675,
+      "y": 0.655,
+      "status": "active"
+    }
+  ],
+  "notes": [
+    "Coordinates are approximate positions matched to the supplied simplified map, not surveying/GPS coordinates.",
+    "The map was simplified from official park-map information and then redrawn schematically.",
+    "For clickable overlays, use left=x*100% and top=y*100%."
+  ]
+}
