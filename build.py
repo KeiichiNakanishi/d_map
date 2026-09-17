@@ -182,6 +182,11 @@ def is_decided(item):
     return item["manual"] or len(item["votes"]) >= THRESHOLD
 
 
+def is_listed(item):
+    """ページに含める対象。1票でも入っていれば載せ、表示はページ側で絞り込む。"""
+    return is_decided(item) or len(item["votes"]) >= 1
+
+
 def is_closed(item):
     return item["name"].startswith("🚫")
 
@@ -291,6 +296,7 @@ def render_pin(item):
     tip = item["name"] + "（" + badge_text(item) + "）"
     return (
         f'<button class="{" ".join(cls)}" data-k="{esc(item["_key"])}" '
+        f'data-v="{len(item["votes"])}" data-c="{1 if is_decided(item) else 0}" '
         f'style="left:{item["_x"] * 100:.2f}%;top:{item["_y"] * 100:.2f}%" '
         f'aria-label="{esc(tip)}">'
         f'<span class="dot">{item["_num"]}</span>'
@@ -321,6 +327,7 @@ def render_row(item):
         else '<span class="num none">–</span>'
     )
     attr = f' data-k="{esc(item["_key"])}" tabindex="0"' if item["_num"] else ""
+    attr += f' data-v="{len(item["votes"])}" data-c="{1 if is_decided(item) else 0}"'
     return (
         f'<li class="{cls}"{attr}>{num}'
         f'<span class="icon">{icon}</span>'
@@ -330,12 +337,22 @@ def render_row(item):
     )
 
 
-def render_legend(items):
-    if not items:
-        return (
-            '<p class="none">まだ決定した場所はありません。'
-            "Notion で投票が集まると、ここと地図に出てきます。</p>"
+def render_chips(items):
+    """票数のしきい値で絞り込むチップ。実際に入っている票数だけを出す。"""
+    top = max((len(i["votes"]) for i in items), default=0)
+    chips = ['<button type="button" class="chip" data-mode="all">すべて</button>']
+    for n in range(1, top + 1):
+        chips.append(
+            f'<button type="button" class="chip" data-mode="{n}">{n}票+</button>'
         )
+    chips.append(
+        '<button type="button" class="chip on" data-mode="fixed" '
+        'aria-pressed="true">🎯 確定</button>'
+    )
+    return f'<div class="chips" role="group" aria-label="表示する票数">{"".join(chips)}</div>'
+
+
+def render_legend(items):
     groups, order = {}, []
     for it in items:
         if it["area"] not in groups:
@@ -356,7 +373,7 @@ def render_legend(items):
 
 def render_park(park, index, rows):
     items = [extract(p) for p in rows]
-    items = [i for i in items if i["name"] and is_decided(i)]
+    items = [i for i in items if i["name"] and is_listed(i)]
 
     placed, unplaced = [], []
     for it in items:
@@ -388,13 +405,15 @@ def render_park(park, index, rows):
         it["_key"] = ""
 
     pins = "".join(render_pin(i) for i in placed)
-    total = len(placed) + len(unplaced)
+    listed = placed + unplaced
+    n_fixed = sum(1 for i in listed if is_decided(i))
 
     return f"""
     <section class="park" id="park-{park["id"]}">
       <header class="park-head">
         <h2>{esc(park["title"])}</h2>
-        <p>{esc(park["day"])} ・ 決定 {total} か所</p>
+        <p>{esc(park["day"])} ・ <span class="pcount">{n_fixed}</span> か所</p>
+        {render_chips(listed)}
       </header>
       <div class="split">
         <figure class="figure">
@@ -406,7 +425,11 @@ def render_park(park, index, rows):
           <figcaption>番号は一覧の番号に対応しています。
           ピンをタップすると名前が出て、一覧の該当行が光ります。</figcaption>
         </figure>
-        <div class="legend">{render_legend(placed + unplaced)}</div>
+        <div class="legend">
+          <p class="none emptymsg" hidden>この条件に当てはまる場所はまだありません。
+          上のボタンで票数の条件をゆるめてみてください。</p>
+          {render_legend(listed)}
+        </div>
       </div>
     </section>"""
 
@@ -475,7 +498,21 @@ h1{font-size:1.5rem; margin:0 0 4px}
 }
 .park{margin:0 0 52px}
 .park-head h2{font-size:1.15rem; margin:0 0 2px}
-.park-head p{margin:0 0 14px; color:var(--muted); font-size:.85rem}
+.park-head p{margin:0 0 9px; color:var(--muted); font-size:.85rem}
+.park-head .pcount{color:var(--ink); font-weight:700}
+
+/* 票数の絞り込み */
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
+.chip{
+  border:1px solid var(--line); background:var(--panel); color:var(--muted);
+  border-radius:99px; padding:4px 12px; font:inherit; font-size:.78rem;
+  font-weight:600; cursor:pointer; transition:all .12s; white-space:nowrap;
+}
+.chip:hover{border-color:var(--accent); color:var(--accent)}
+.chip.on{
+  background:var(--accent); border-color:var(--accent); color:var(--on-accent);
+}
+[hidden]{display:none !important}
 
 .split{
   display:grid; grid-template-columns:minmax(0,1.6fr) minmax(290px,1fr);
@@ -604,6 +641,69 @@ JS = """
   }
 })();
 
+/* 票数による絞り込み */
+(function(){
+  document.querySelectorAll('.park').forEach(function(park){
+    var chips = park.querySelectorAll('.chip');
+    if (!chips.length) return;
+    var rows  = park.querySelectorAll('.legend li');
+    var empty = park.querySelector('.emptymsg');
+    var count = park.querySelector('.pcount');
+
+    function visible(li, mode){
+      if (mode === 'all')   return true;
+      if (mode === 'fixed') return li.dataset.c === '1';
+      return (+li.dataset.v) >= (+mode);
+    }
+    function apply(mode){
+      rows.forEach(function(li){
+        var show = visible(li, mode);
+        li.hidden = !show;
+        var k = li.dataset.k;
+        if (k) {
+          var pin = park.querySelector('.pin[data-k="' + k + '"]');
+          if (pin) pin.hidden = !show;
+        }
+      });
+      var total = 0;
+      park.querySelectorAll('.legend .group').forEach(function(g){
+        var n = 0;
+        g.querySelectorAll('li').forEach(function(li){ if (!li.hidden) n++; });
+        g.hidden = n === 0;
+        var c = g.querySelector('.gcount');
+        if (c) c.textContent = n;
+        total += n;
+      });
+      /* 表示されているものだけで通し番号を振り直す */
+      var i = 0;
+      rows.forEach(function(li){
+        if (li.hidden) return;
+        var k = li.dataset.k;
+        if (!k) return;
+        i++;
+        var num = li.querySelector('.num');
+        if (num) num.textContent = i;
+        var dot = park.querySelector('.pin[data-k="' + k + '"] .dot');
+        if (dot) dot.textContent = i;
+      });
+      if (count) count.textContent = total;
+      if (empty) empty.hidden = total > 0;
+    }
+
+    chips.forEach(function(ch){
+      ch.addEventListener('click', function(){
+        chips.forEach(function(c){
+          var on = (c === ch);
+          c.classList.toggle('on', on);
+          c.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        apply(ch.dataset.mode);
+      });
+    });
+    apply((park.querySelector('.chip.on') || chips[0]).dataset.mode);
+  });
+})();
+
 /* 「◯分前に更新」の表示と、新しいビルドの検知 */
 (function(){
   var bar = document.getElementById('statusbar');
@@ -685,7 +785,7 @@ def content_hash(park_rows):
     for p, rows in park_rows:
         for page in rows:
             it = extract(page)
-            if it["name"] and is_decided(it):
+            if it["name"] and is_listed(it):
                 sig.append(
                     (p["key"], it["name"], it["area"], it["manual"],
                      tuple(sorted(it["votes"])))
