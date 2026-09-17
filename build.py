@@ -580,6 +580,13 @@ JS = """
     });
   }
   if (park || q.get('compact') === '1') document.body.classList.add('compact');
+
+  /* ?admin=1 のときだけ「いますぐ取得」を出す。
+     権限のない人には押せないリンクなので、既定では隠しておく。 */
+  if (q.get('admin') === '1') {
+    var a = document.getElementById('fetchnow');
+    if (a) a.hidden = false;
+  }
 })();
 
 /* 「◯分前に更新」の表示と、新しいビルドの検知 */
@@ -681,9 +688,10 @@ def build_html(park_rows, built_iso, digest):
     )
 
     fetch_now = (
-        f'<a class="fetchnow" href="{esc(ACTIONS_URL)}" target="_blank"'
-        f' rel="noopener" title="GitHub Actions を手動で実行します。'
-        f'リポジトリの権限がある人のみ">いますぐ取得</a>'
+        f'<a class="fetchnow" id="fetchnow" hidden href="{esc(ACTIONS_URL)}"'
+        f' target="_blank" rel="noopener"'
+        f' title="GitHub Actions を手動で実行します（リポジトリの権限が必要）">'
+        f'いますぐ取得</a>'
         if ACTIONS_URL
         else ""
     )
