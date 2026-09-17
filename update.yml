@@ -1,0 +1,54 @@
+name: Update Disney map
+
+on:
+  # 5分おきに Notion を読みに行く（GitHub Actions の最短間隔）
+  schedule:
+    - cron: "*/5 * * * *"
+  # Actions タブから手動実行もできる
+  workflow_dispatch:
+  # main に push したときもビルドし直す
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行を防ぐ（前の実行を待つ）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Python をセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Notion から読んで HTML を生成
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          # データベースID（秘密情報ではないのでここに直接書いてよい）
+          NOTION_DB_LAND: 3dd7c67b3fde804492cccd0cfa6df812
+          NOTION_DB_SEA: 3dd7c67b3fde804fa856e91b65a49e14
+        run: python build.py
+
+      - name: Pages 用にアップロード
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Pages にデプロイ
+        id: deploy
+        uses: actions/deploy-pages@v4
