@@ -1,9 +1,10 @@
 name: Update Disney map
 
 on:
-  # 5分おきに Notion を読みに行く（GitHub Actions の最短間隔）
+  # 15分おきに Notion を読みに行く
+  # （最短は5分だが、GitHub 側の間引きと Actions 分数の消費を考えて15分にしている）
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"
   # Actions タブから手動実行もできる
   workflow_dispatch:
   # main に push したときもビルドし直す

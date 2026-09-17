@@ -723,7 +723,7 @@ JS = """
   }
   function paint(){
     if (stale) return;
-    when.innerHTML = '最終更新 <b>' + ago() + '</b> ・ 5分おきに Notion から自動更新';
+    when.innerHTML = '最終更新 <b>' + ago() + '</b> ・ 15分おきに Notion から自動更新';
   }
   function markStale(){
     stale = true;
