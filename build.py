@@ -18,6 +18,7 @@ Notion の2つのデータベース（ディズニーランド / ディズニー
   python build.py
 """
 
+import hashlib
 import html
 import json
 import math
@@ -39,6 +40,12 @@ THRESHOLD = 3
 
 # 公開ページに個人名を出すかどうか。False なら票数だけを表示する。
 SHOW_VOTER_NAMES = False
+
+# 「いますぐ取得」リンクの飛び先（GitHub Actions の手動実行ページ）。
+# リポジトリの権限がある人だけが実行できる。空文字にするとリンクを出さない。
+ACTIONS_URL = (
+    "https://github.com/KeiichiNakanishi/d_map/actions/workflows/update.yml"
+)
 
 # 座標データに無い場所の手動指定（正規化座標 0〜1）。
 # 例: "エレクトリカルパレード": (0.50, 0.62)
@@ -70,6 +77,7 @@ TYPE_ICON = {
 PARKS = [
     {
         "key": "L",
+        "id": "land",
         "title": "🏰 ディズニーランド",
         "day": "9/21（月）",
         "spots": "data/tdl_spots.json",
@@ -79,6 +87,7 @@ PARKS = [
     },
     {
         "key": "S",
+        "id": "sea",
         "title": "🌊 ディズニーシー",
         "day": "9/22（火）",
         "spots": "data/tds_spots.json",
@@ -367,7 +376,7 @@ def render_park(park, index, rows):
     total = len(placed) + len(unplaced)
 
     return f"""
-    <section class="park">
+    <section class="park" id="park-{park["id"]}">
       <header class="park-head">
         <h2>{esc(park["title"])}</h2>
         <p>{esc(park["day"])} ・ 決定 {total} か所</p>
@@ -413,8 +422,42 @@ body{
 }
 .wrap{max-width:1280px; margin:0 auto; padding:32px 16px 64px}
 h1{font-size:1.5rem; margin:0 0 4px}
-.lede{color:var(--muted); margin:0 0 4px; font-size:.9rem}
-.stamp{color:var(--muted); font-size:.8rem; margin:0 0 36px}
+.lede{color:var(--muted); margin:0 0 14px; font-size:.9rem}
+
+/* 更新バー */
+.statusbar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:9px 13px; margin:0 0 32px;
+}
+.statusbar .when{font-size:.82rem; color:var(--muted); flex:1 1 auto; min-width:0}
+.statusbar .when b{color:var(--ink); font-weight:600}
+.refresh{
+  flex:none; display:inline-flex; align-items:center; gap:6px;
+  border:1px solid var(--line); background:transparent; color:var(--ink);
+  border-radius:8px; padding:5px 12px; font:inherit; font-size:.82rem;
+  font-weight:600; cursor:pointer; transition:background .12s, border-color .12s;
+}
+.refresh:hover{background:var(--accent-soft); border-color:var(--accent)}
+.refresh .spin{display:inline-block; transition:transform .5s}
+.refresh:hover .spin{transform:rotate(180deg)}
+.fetchnow{
+  flex:none; font-size:.78rem; color:var(--muted); text-decoration:none;
+  border-bottom:1px dotted var(--line); padding-bottom:1px;
+}
+.fetchnow:hover{color:var(--accent); border-bottom-color:var(--accent)}
+.statusbar.fresh{border-color:var(--hl); background:var(--hl-soft)}
+.statusbar.fresh .when b{color:var(--hl)}
+.statusbar.fresh .refresh{
+  background:var(--hl); border-color:var(--hl); color:#fff;
+  animation:nudge 1.6s ease-in-out infinite;
+}
+.statusbar.fresh .refresh:hover{background:var(--hl); filter:brightness(1.08)}
+@keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@media (prefers-reduced-motion:reduce){
+  .statusbar.fresh .refresh{animation:none}
+  .refresh .spin{transition:none}
+}
 .park{margin:0 0 52px}
 .park-head h2{font-size:1.15rem; margin:0 0 2px}
 .park-head p{margin:0 0 14px; color:var(--muted); font-size:.85rem}
@@ -506,6 +549,14 @@ footer{
   margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
   color:var(--muted); font-size:.78rem;
 }
+/* Notion への埋め込み（?park=land など） */
+body.compact .wrap{padding:14px 14px 22px; max-width:none}
+body.compact h1, body.compact .lede{display:none}
+body.compact .statusbar{margin-bottom:16px}
+body.compact .park{margin-bottom:0}
+body.compact .park-head h2{font-size:1rem}
+body.compact footer{margin-top:22px; padding-top:12px}
+
 @media (max-width:900px){
   .split{grid-template-columns:1fr}
   .figure{position:static}
@@ -518,6 +569,64 @@ footer{
 """
 
 JS = """
+/* ?park=land / ?park=sea … 片方のパークだけ表示（Notion 埋め込み用）
+   ?compact=1 …… タイトルを省いて詰めて表示 */
+(function(){
+  var q = new URLSearchParams(location.search);
+  var park = (q.get('park') || '').toLowerCase();
+  if (park === 'land' || park === 'sea') {
+    document.querySelectorAll('.park').forEach(function(s){
+      if (s.id !== 'park-' + park) s.remove();
+    });
+  }
+  if (park || q.get('compact') === '1') document.body.classList.add('compact');
+})();
+
+/* 「◯分前に更新」の表示と、新しいビルドの検知 */
+(function(){
+  var bar = document.getElementById('statusbar');
+  if (!bar) return;
+  var when  = document.getElementById('when');
+  var btn   = document.getElementById('refresh');
+  var built = new Date(bar.dataset.built);
+  var hash  = bar.dataset.hash;
+  var stale = false;
+
+  function ago(){
+    var s = Math.max(0, (Date.now() - built.getTime()) / 1000);
+    if (s < 60)    return 'たった今';
+    if (s < 3600)  return Math.floor(s / 60) + '分前';
+    if (s < 86400) return Math.floor(s / 3600) + '時間前';
+    return Math.floor(s / 86400) + '日前';
+  }
+  function paint(){
+    if (stale) return;
+    when.innerHTML = '最終更新 <b>' + ago() + '</b> ・ 5分おきに Notion から自動更新';
+  }
+  function markStale(){
+    stale = true;
+    bar.classList.add('fresh');
+    when.innerHTML = '<b>新しい投票結果があります</b> ・ 読み込むと反映されます';
+    btn.textContent = '最新を表示';
+  }
+  function check(){
+    if (stale || document.hidden) return;
+    fetch('status.json?t=' + Date.now(), {cache: 'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d && d.hash && d.hash !== hash) markStale(); })
+      .catch(function(){ /* オフラインなどは黙って無視 */ });
+  }
+
+  paint();
+  setInterval(paint, 20000);
+  setInterval(check, 60000);
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) { paint(); check(); }
+  });
+  btn.addEventListener('click', function(){ location.reload(); });
+  setTimeout(check, 3000);
+})();
+
 (function(){
   var sticky = null;
   function mark(k, on){
@@ -548,13 +657,45 @@ JS = """
 """
 
 
-def build_html(park_rows):
+def content_hash(park_rows):
+    """決定した項目だけのハッシュ。無関係な編集では変わらない。"""
+    sig = []
+    for p, rows in park_rows:
+        for page in rows:
+            it = extract(page)
+            if it["name"] and is_decided(it):
+                sig.append(
+                    (p["key"], it["name"], it["area"], it["manual"],
+                     tuple(sorted(it["votes"])))
+                )
+    sig.sort()
+    return hashlib.sha1(repr(sig).encode("utf-8")).hexdigest()[:16]
+
+
+def build_html(park_rows, built_iso, digest):
     now = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
     rule = f"{THRESHOLD}票以上、または Notion で「決定」にチェックが入ったもの"
     parks = "".join(
         render_park(p, SpotIndex(os.path.join(HERE, p["spots"])), rows)
         for p, rows in park_rows
     )
+
+    fetch_now = (
+        f'<a class="fetchnow" href="{esc(ACTIONS_URL)}" target="_blank"'
+        f' rel="noopener" title="GitHub Actions を手動で実行します。'
+        f'リポジトリの権限がある人のみ">いますぐ取得</a>'
+        if ACTIONS_URL
+        else ""
+    )
+    statusbar = f"""
+  <div class="statusbar" id="statusbar"
+       data-built="{esc(built_iso)}" data-hash="{esc(digest)}">
+    <span class="when" id="when">最終更新 {esc(now)} JST</span>
+    {fetch_now}
+    <button class="refresh" id="refresh" type="button">
+      <span class="spin" aria-hidden="true">⟳</span>更新
+    </button>
+  </div>"""
 
     return f"""<!DOCTYPE html>
 <html lang="ja">
@@ -569,7 +710,7 @@ def build_html(park_rows):
 <div class="wrap">
   <h1>ディズニー2泊3日旅</h1>
   <p class="lede">決定した行き先（{esc(rule)}）</p>
-  <p class="stamp">最終更新 {esc(now)} JST ・ Notion の投票から自動生成</p>
+  {statusbar}
   {parks}
   <footer>
     破線のピンと「エリア内」は正確な位置が分からない項目で、エリアの中心に置いています。<br>
@@ -602,9 +743,15 @@ def main():
             os.path.join(HERE, p["src"]), os.path.join(out_dir, p["image"])
         )
 
+    built_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    digest = content_hash(park_rows)
+
+    with open(os.path.join(out_dir, "status.json"), "w", encoding="utf-8") as f:
+        json.dump({"built": built_iso, "hash": digest}, f, ensure_ascii=False)
+
     out = os.path.join(out_dir, "index.html")
     with open(out, "w", encoding="utf-8") as f:
-        f.write(build_html(park_rows))
+        f.write(build_html(park_rows, built_iso, digest))
 
     counts = " / ".join(f'{p["title"]} {len(r)}件' for p, r in park_rows)
     print(f"{counts} を読み込み、{out} を書き出しました。")
