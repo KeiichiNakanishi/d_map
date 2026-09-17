@@ -1,11 +1,11 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.3",
   "park": {
     "id": "tds",
     "name": "東京ディズニーシー",
-    "map_image": "tds_map.png",
-    "image_width_px": 1491,
-    "image_height_px": 1055,
+    "map_image": "東京ディズニーシー簡易マップ.png",
+    "image_width_px": 1448,
+    "image_height_px": 1086,
     "coordinate_system": {
       "type": "normalized_image",
       "origin": "top_left",
@@ -17,11 +17,16 @@
         0.0,
         1.0
       ],
-      "conversion": {
-        "pixel_x": "x * image_width_px",
-        "pixel_y": "y * image_height_px"
+      "usage": {
+        "css_left_percent": "x * 100",
+        "css_top_percent": "y * 100"
       }
-    }
+    },
+    "notes": [
+      "Coordinates are approximate positions aligned to the current simplified map image.",
+      "This is not GPS data.",
+      "The map was simplified from the official Tokyo DisneySea map and user corrections."
+    ]
   },
   "areas": [
     {
@@ -63,8 +68,8 @@
       "name": "ヴェネツィアン・ゴンドラ",
       "category": "attraction",
       "area": "mediterranean_harbor",
-      "x": 0.455,
-      "y": 0.655,
+      "x": 0.445,
+      "y": 0.565,
       "status": "active"
     },
     {
@@ -72,8 +77,8 @@
       "name": "ディズニーシー・トランジットスチーマーライン（メディテレーニアンハーバー）",
       "category": "attraction",
       "area": "mediterranean_harbor",
-      "x": 0.54,
-      "y": 0.66,
+      "x": 0.575,
+      "y": 0.54,
       "status": "active"
     },
     {
@@ -81,8 +86,8 @@
       "name": "ソアリン：ファンタスティック・フライト",
       "category": "attraction",
       "area": "mediterranean_harbor",
-      "x": 0.61,
-      "y": 0.625,
+      "x": 0.405,
+      "y": 0.69,
       "status": "active"
     },
     {
@@ -90,8 +95,8 @@
       "name": "フォートレス・エクスプロレーション",
       "category": "attraction",
       "area": "mediterranean_harbor",
-      "x": 0.57,
-      "y": 0.545,
+      "x": 0.505,
+      "y": 0.595,
       "status": "active"
     },
     {
@@ -99,8 +104,8 @@
       "name": "タワー・オブ・テラー",
       "category": "attraction",
       "area": "american_waterfront",
-      "x": 0.25,
-      "y": 0.665,
+      "x": 0.15,
+      "y": 0.72,
       "status": "active"
     },
     {
@@ -108,8 +113,8 @@
       "name": "トイ・ストーリー・マニア！",
       "category": "attraction",
       "area": "american_waterfront",
-      "x": 0.305,
-      "y": 0.7,
+      "x": 0.19,
+      "y": 0.75,
       "status": "active"
     },
     {
@@ -117,8 +122,8 @@
       "name": "タートル・トーク",
       "category": "attraction",
       "area": "american_waterfront",
-      "x": 0.29,
-      "y": 0.615,
+      "x": 0.165,
+      "y": 0.66,
       "status": "active"
     },
     {
@@ -126,8 +131,8 @@
       "name": "ビッグシティ・ヴィークル",
       "category": "attraction",
       "area": "american_waterfront",
-      "x": 0.36,
-      "y": 0.665,
+      "x": 0.215,
+      "y": 0.69,
       "status": "active"
     },
     {
@@ -135,8 +140,17 @@
       "name": "ディズニーシー・エレクトリックレールウェイ（アメリカンウォーターフロント）",
       "category": "attraction",
       "area": "american_waterfront",
-      "x": 0.365,
-      "y": 0.6,
+      "x": 0.25,
+      "y": 0.595,
+      "status": "active"
+    },
+    {
+      "id": "tds_transit_steamer_aw",
+      "name": "ディズニーシー・トランジットスチーマーライン（アメリカンウォーターフロント）",
+      "category": "attraction",
+      "area": "american_waterfront",
+      "x": 0.235,
+      "y": 0.56,
       "status": "active"
     },
     {
@@ -144,8 +158,8 @@
       "name": "ニモ＆フレンズ・シーライダー",
       "category": "attraction",
       "area": "port_discovery",
-      "x": 0.795,
-      "y": 0.345,
+      "x": 0.25,
+      "y": 0.255,
       "status": "active"
     },
     {
@@ -153,8 +167,8 @@
       "name": "ディズニーシー・エレクトリックレールウェイ（ポートディスカバリー）",
       "category": "attraction",
       "area": "port_discovery",
-      "x": 0.735,
-      "y": 0.39,
+      "x": 0.285,
+      "y": 0.315,
       "status": "active"
     },
     {
@@ -162,8 +176,8 @@
       "name": "インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮",
       "category": "attraction",
       "area": "lost_river_delta",
-      "x": 0.845,
-      "y": 0.555,
+      "x": 0.585,
+      "y": 0.22,
       "status": "active"
     },
     {
@@ -171,8 +185,8 @@
       "name": "レイジングスピリッツ",
       "category": "attraction",
       "area": "lost_river_delta",
-      "x": 0.78,
-      "y": 0.61,
+      "x": 0.665,
+      "y": 0.205,
       "status": "active"
     },
     {
@@ -180,8 +194,8 @@
       "name": "ディズニーシー・トランジットスチーマーライン（ロストリバーデルタ）",
       "category": "attraction",
       "area": "lost_river_delta",
-      "x": 0.725,
-      "y": 0.59,
+      "x": 0.545,
+      "y": 0.3,
       "status": "active"
     },
     {
@@ -189,8 +203,8 @@
       "name": "アナとエルサのフローズンジャーニー",
       "category": "attraction",
       "area": "fantasy_springs",
-      "x": 0.655,
-      "y": 0.17,
+      "x": 0.855,
+      "y": 0.175,
       "status": "active"
     },
     {
@@ -198,8 +212,8 @@
       "name": "ラプンツェルのランタンフェスティバル",
       "category": "attraction",
       "area": "fantasy_springs",
-      "x": 0.72,
-      "y": 0.205,
+      "x": 0.805,
+      "y": 0.125,
       "status": "active"
     },
     {
@@ -207,8 +221,8 @@
       "name": "ピーターパンのネバーランドアドベンチャー",
       "category": "attraction",
       "area": "fantasy_springs",
-      "x": 0.665,
-      "y": 0.245,
+      "x": 0.93,
+      "y": 0.12,
       "status": "active"
     },
     {
@@ -216,8 +230,8 @@
       "name": "フェアリー・ティンカーベルのビジーバギー",
       "category": "attraction",
       "area": "fantasy_springs",
-      "x": 0.76,
-      "y": 0.145,
+      "x": 0.92,
+      "y": 0.245,
       "status": "active"
     },
     {
@@ -225,8 +239,8 @@
       "name": "シンドバッド・ストーリーブック・ヴォヤッジ",
       "category": "attraction",
       "area": "arabian_coast",
-      "x": 0.18,
-      "y": 0.42,
+      "x": 0.865,
+      "y": 0.465,
       "status": "active"
     },
     {
@@ -234,8 +248,8 @@
       "name": "マジックランプシアター",
       "category": "attraction",
       "area": "arabian_coast",
-      "x": 0.205,
-      "y": 0.355,
+      "x": 0.91,
+      "y": 0.41,
       "status": "active"
     },
     {
@@ -243,8 +257,8 @@
       "name": "キャラバンカルーセル",
       "category": "attraction",
       "area": "arabian_coast",
-      "x": 0.155,
-      "y": 0.315,
+      "x": 0.92,
+      "y": 0.5,
       "status": "active"
     },
     {
@@ -252,8 +266,8 @@
       "name": "ジャスミンのフライングカーペット",
       "category": "attraction",
       "area": "arabian_coast",
-      "x": 0.235,
-      "y": 0.47,
+      "x": 0.82,
+      "y": 0.525,
       "status": "active"
     },
     {
@@ -261,8 +275,8 @@
       "name": "アリエルのプレイグラウンド",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.365,
-      "y": 0.25,
+      "x": 0.66,
+      "y": 0.465,
       "status": "active"
     },
     {
@@ -270,17 +284,17 @@
       "name": "フランダーのフライングフィッシュコースター",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.315,
-      "y": 0.205,
+      "x": 0.715,
+      "y": 0.495,
       "status": "active"
     },
     {
-      "id": "tds_scutttle_scooters",
+      "id": "tds_scuttle_scooters",
       "name": "スカットルのスクーター",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.4,
-      "y": 0.22,
+      "x": 0.695,
+      "y": 0.43,
       "status": "active"
     },
     {
@@ -288,8 +302,8 @@
       "name": "ジャンピン・ジェリーフィッシュ",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.345,
-      "y": 0.285,
+      "x": 0.625,
+      "y": 0.47,
       "status": "active"
     },
     {
@@ -297,8 +311,8 @@
       "name": "ブローフィッシュ・バルーンレース",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.39,
-      "y": 0.3,
+      "x": 0.68,
+      "y": 0.515,
       "status": "active"
     },
     {
@@ -306,8 +320,8 @@
       "name": "ワールプール",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.42,
-      "y": 0.27,
+      "x": 0.64,
+      "y": 0.425,
       "status": "active"
     },
     {
@@ -315,26 +329,26 @@
       "name": "マーメイドラグーンシアター",
       "category": "attraction",
       "area": "mermaid_lagoon",
-      "x": 0.36,
-      "y": 0.315,
+      "x": 0.65,
+      "y": 0.505,
       "status": "suspended"
-    },
-    {
-      "id": "tds_20000_leagues",
-      "name": "海底2万マイル",
-      "category": "attraction",
-      "area": "mysterious_island",
-      "x": 0.515,
-      "y": 0.455,
-      "status": "active"
     },
     {
       "id": "tds_journey",
       "name": "センター・オブ・ジ・アース",
       "category": "attraction",
       "area": "mysterious_island",
-      "x": 0.5,
-      "y": 0.385,
+      "x": 0.43,
+      "y": 0.375,
+      "status": "active"
+    },
+    {
+      "id": "tds_20000_leagues",
+      "name": "海底2万マイル",
+      "category": "attraction",
+      "area": "mysterious_island",
+      "x": 0.445,
+      "y": 0.495,
       "status": "active"
     }
   ],
@@ -344,86 +358,90 @@
       "name": "メインエントランス",
       "category": "entrance",
       "area": "entrance",
-      "x": 0.5,
-      "y": 0.9,
+      "x": 0.505,
+      "y": 0.935,
       "status": "active"
     },
     {
-      "id": "tds_wc_01",
+      "id": "tds_wc_aw",
       "name": "トイレ",
       "category": "restroom",
       "area": "american_waterfront",
-      "x": 0.15,
-      "y": 0.665,
+      "x": 0.35,
+      "y": 0.7,
       "status": "active"
     },
     {
-      "id": "tds_wc_02",
-      "name": "トイレ",
-      "category": "restroom",
-      "area": "arabian_coast",
-      "x": 0.07,
-      "y": 0.3,
-      "status": "active"
-    },
-    {
-      "id": "tds_wc_03",
-      "name": "トイレ",
-      "category": "restroom",
-      "area": "mermaid_lagoon",
-      "x": 0.455,
-      "y": 0.205,
-      "status": "active"
-    },
-    {
-      "id": "tds_wc_04",
-      "name": "トイレ",
-      "category": "restroom",
-      "area": "mysterious_island",
-      "x": 0.545,
-      "y": 0.485,
-      "status": "active"
-    },
-    {
-      "id": "tds_wc_05",
-      "name": "トイレ",
-      "category": "restroom",
-      "area": "fantasy_springs",
-      "x": 0.79,
-      "y": 0.11,
-      "status": "active"
-    },
-    {
-      "id": "tds_wc_06",
+      "id": "tds_wc_pd_1",
       "name": "トイレ",
       "category": "restroom",
       "area": "port_discovery",
-      "x": 0.94,
-      "y": 0.4,
+      "x": 0.47,
+      "y": 0.22,
       "status": "active"
     },
     {
-      "id": "tds_wc_07",
+      "id": "tds_wc_pd_2",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "port_discovery",
+      "x": 0.43,
+      "y": 0.325,
+      "status": "active"
+    },
+    {
+      "id": "tds_wc_lrd",
       "name": "トイレ",
       "category": "restroom",
       "area": "lost_river_delta",
-      "x": 0.94,
-      "y": 0.65,
+      "x": 0.42,
+      "y": 0.16,
       "status": "active"
     },
     {
-      "id": "tds_wc_08",
+      "id": "tds_wc_fs",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "fantasy_springs",
+      "x": 0.735,
+      "y": 0.1,
+      "status": "active"
+    },
+    {
+      "id": "tds_wc_ml",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "mermaid_lagoon",
+      "x": 0.765,
+      "y": 0.44,
+      "status": "active"
+    },
+    {
+      "id": "tds_wc_ac",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "arabian_coast",
+      "x": 0.93,
+      "y": 0.405,
+      "status": "active"
+    },
+    {
+      "id": "tds_wc_mh_1",
       "name": "トイレ",
       "category": "restroom",
       "area": "mediterranean_harbor",
-      "x": 0.585,
-      "y": 0.735,
+      "x": 0.42,
+      "y": 0.865,
+      "status": "active"
+    },
+    {
+      "id": "tds_wc_mh_2",
+      "name": "トイレ",
+      "category": "restroom",
+      "area": "mediterranean_harbor",
+      "x": 0.62,
+      "y": 0.865,
       "status": "active"
     }
-  ],
-  "notes": [
-    "Coordinates are approximate positions matched to the supplied simplified map, not surveying/GPS coordinates.",
-    "The map was simplified from official park-map information and then redrawn schematically.",
-    "For clickable overlays, use left=x*100% and top=y*100%."
   ]
 }
