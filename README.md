@@ -22,7 +22,7 @@ data/README.md              座標データの仕様
 
 ---
 
-## 慶一さんにやっていただく作業（全5ステップ・15分ほど）
+## セットアップ手順（全5ステップ・15分ほど）
 
 ### 1. Notion のコネクトを作る
 
@@ -42,7 +42,7 @@ data/README.md              座標データの仕様
 
 ### 2. Notion のページにコネクトを接続する
 
-1. Notion で「ディズニー2泊3日旅」のページを開く
+1. Notion で旅のトップページ（ランド／シーのデータベースの親ページ）を開く
 2. 右上の「•••」→ **コネクト**（接続を追加）→ さきほど作った `disney_github` を選ぶ
 3. 子データベース（ディズニーランド / ディズニーシー）にも自動で権限が下ります
 
@@ -101,7 +101,7 @@ git push -u origin main
 URL に `?admin=1` を付けたときだけ、GitHub Actions の手動実行ページへのリンクが
 バーに出ます。リポジトリの権限がある人しか実行できないので、既定では隠してあります。
 
-    https://keiichinakanishi.github.io/d_map/?admin=1
+    https://<ユーザー名>.github.io/d_map/?admin=1
 
 このURLをブックマークしておくと「いますぐ取得 → Run workflow → 30秒後に 更新」で
 好きなタイミングに反映できます。`?park=land&admin=1` のように併用もできます。
@@ -112,9 +112,9 @@ Notion のページで `/embed` → 「埋め込みを作成」に URL を貼り
 
 | 埋め込む場所 | URL |
 |---|---|
-| Day1（ランド）の下 | `https://keiichinakanishi.github.io/d_map/?park=land` |
-| Day2（シー）の下 | `https://keiichinakanishi.github.io/d_map/?park=sea` |
-| 両方まとめて | `https://keiichinakanishi.github.io/d_map/` |
+| Day1（ランド）の下 | `https://<ユーザー名>.github.io/d_map/?park=land` |
+| Day2（シー）の下 | `https://<ユーザー名>.github.io/d_map/?park=sea` |
+| 両方まとめて | `https://<ユーザー名>.github.io/d_map/` |
 
 `?park=land` / `?park=sea` を付けるとそのパークだけを表示し、ページ見出しを省いて
 埋め込み向けに詰めたレイアウトになります（`?compact=1` だけでも詰まります）。

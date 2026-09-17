@@ -45,9 +45,12 @@ THRESHOLD = 3
 SHOW_VOTER_NAMES = False
 
 # 「いますぐ取得」リンクの飛び先（GitHub Actions の手動実行ページ）。
-# リポジトリの権限がある人だけが実行できる。空文字にするとリンクを出さない。
+# リポジトリの権限がある人だけが実行できる。
+# GitHub Actions 上では GITHUB_REPOSITORY（"owner/repo"）から自動で組み立てるので、
+# リポジトリ名をここに書く必要はない。取得できなければリンクを出さない。
+_REPO = os.environ.get("GITHUB_REPOSITORY", "").strip()
 ACTIONS_URL = (
-    "https://github.com/KeiichiNakanishi/d_map/actions/workflows/update.yml"
+    f"https://github.com/{_REPO}/actions/workflows/update.yml" if _REPO else ""
 )
 
 # 座標データに無い場所の手動指定（正規化座標 0〜1）。
